@@ -49,7 +49,7 @@ public class MainActivity extends Activity {
     private ScrollView chatScrollRef;
     private final Handler ui = new Handler(Looper.getMainLooper());
     private static final String DEFAULT_URL = "http://192.168.1.5:8899";
-    private static final String[] EMOJI = {"😀","😄","😂","🥺","😭","🤔","👍","🐟","🍚","❤️"};
+    private static final String[] EMOJI = {"😀","😂","🥺","😭","👍","❤️"};
 
     @Override
     protected void onCreate(Bundle b) {
