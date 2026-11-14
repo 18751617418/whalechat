@@ -263,7 +263,10 @@ public class MainActivity extends Activity {
         });
 
         for (int i = 0; i < emojiBar.getChildCount(); i++) {
-            final TextView t = (TextView) emojiBar.getChildAt(i);
+            View child = emojiBar.getChildAt(i);
+            if (!(child instanceof TextView)) continue;
+            final TextView t = (TextView) child;
+            if ("＋".equals(t.getText().toString())) continue;
             t.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
                     input.append(t.getText().toString());
