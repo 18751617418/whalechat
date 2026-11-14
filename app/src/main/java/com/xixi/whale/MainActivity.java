@@ -230,6 +230,34 @@ public class MainActivity extends Activity {
 
         bubble(msgs, scroll, "我是" + name + "，有什么就说吧。", false);
 
+        final String baseUrl0 = prefs.getString("url_" + idx, "");
+        if (baseUrl0 != null && baseUrl0.length() > 0) {
+            new Thread(new Runnable() {
+                public void run() {
+                    final String json = get(baseUrl0, "/history");
+                    ui.post(new Runnable() {
+                        public void run() {
+                            try {
+                                org.json.JSONObject root = new org.json.JSONObject(json);
+                                org.json.JSONArray arr = root.optJSONArray("messages");
+                                if (arr != null && arr.length() > 0) {
+                                    msgs.removeAllViews();
+                                    for (int i = 0; i < arr.length(); i++) {
+                                        org.json.JSONObject m = arr.getJSONObject(i);
+                                        String t = m.optString("text", "");
+                                        if (t.length() > 0) {
+                                            bubble(msgs, scroll, t, m.optBoolean("mine", false));
+                                        }
+                                    }
+                                }
+                            } catch (Exception ignored) {
+                            }
+                        }
+                    });
+                }
+            }).start();
+        }
+
         send.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 String text = input.getText().toString().trim();
@@ -256,6 +284,29 @@ public class MainActivity extends Activity {
                 }).start();
             }
         });
+    }
+
+    private String get(String base, String path) {
+        HttpURLConnection conn = null;
+        try {
+            URL u = new URL(base.replaceAll("/+$", "") + path);
+            conn = (HttpURLConnection) u.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setConnectTimeout(8000);
+            conn.setReadTimeout(30000);
+            int code = conn.getResponseCode();
+            if (code >= 400) return "{}";
+            BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = br.readLine()) != null) sb.append(line);
+            br.close();
+            return sb.toString();
+        } catch (Exception e) {
+            return "{}";
+        } finally {
+            if (conn != null) conn.disconnect();
+        }
     }
 
     private String post(String base, String name, String text) {
