@@ -1,6 +1,11 @@
 package com.xixi.whale;
 
 import android.app.Activity;
+import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.net.Uri;
+import android.util.Base64;
 import android.app.AlertDialog;
 import android.content.SharedPreferences;
 import android.graphics.Color;
@@ -14,6 +19,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -22,6 +28,10 @@ import android.widget.Toast;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -31,6 +41,12 @@ public class MainActivity extends Activity {
 
     private SharedPreferences prefs;
     private boolean inChat = false;
+    private static final int REQ_PICK = 1001;
+    private LinearLayout emojiBarRef;
+    private String chatBaseUrl = "";
+    private String chatName = "";
+    private LinearLayout chatMsgsRef;
+    private ScrollView chatScrollRef;
     private final Handler ui = new Handler(Looper.getMainLooper());
     private static final String DEFAULT_URL = "http://192.168.1.5:8899";
     private static final String[] EMOJI = {"😀","😄","😂","🥺","😭","🤔","👍","🐟","🍚","❤️"};
@@ -171,7 +187,9 @@ public class MainActivity extends Activity {
         page.addView(bar);
 
         final ScrollView scroll = new ScrollView(this);
+        chatScrollRef = scroll;
         final LinearLayout msgs = new LinearLayout(this);
+        chatMsgsRef = msgs;
         msgs.setOrientation(LinearLayout.VERTICAL);
         msgs.setPadding(dp(12), dp(12), dp(12), dp(12));
         scroll.addView(msgs);
@@ -189,6 +207,18 @@ public class MainActivity extends Activity {
             t.setPadding(dp(8), dp(2), dp(8), dp(2));
             emojiBar.addView(t);
         }
+        emojiBarRef = emojiBar;
+        chatBaseUrl = prefs.getString("url_" + idx, DEFAULT_URL);
+        chatName = name;
+
+        TextView addBtn = label("＋", 20, Color.parseColor("#3D6AF2"), true);
+        addBtn.setPadding(dp(8), dp(2), dp(8), dp(2));
+        addBtn.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) { pickEmoji(); }
+        });
+        emojiBar.addView(addBtn);
+        loadCustomEmoji(emojiBar);
+
         page.addView(emojiBar);
 
         LinearLayout inputBar = new LinearLayout(this);
@@ -297,6 +327,123 @@ public class MainActivity extends Activity {
                 }).start();
             }
         });
+    }
+
+
+    private void pickEmoji() {
+        Intent i = new Intent(Intent.ACTION_GET_CONTENT);
+        i.setType("image/*");
+        i.addCategory(Intent.CATEGORY_OPENABLE);
+        try {
+            startActivityForResult(Intent.createChooser(i, "选一张当表情"), REQ_PICK);
+        } catch (Exception e) {
+            Toast.makeText(this, "打不开相册", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int req, int res, Intent data) {
+        super.onActivityResult(req, res, data);
+        if (req != REQ_PICK || res != RESULT_OK || data == null || data.getData() == null) return;
+        try {
+            InputStream is = getContentResolver().openInputStream(data.getData());
+            File f = new File(getFilesDir(), "emoji_" + System.currentTimeMillis() + ".jpg");
+            FileOutputStream os = new FileOutputStream(f);
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = is.read(buf)) > 0) os.write(buf, 0, n);
+            os.close();
+            is.close();
+            String list = prefs.getString("emoji_files", "");
+            String next = list.length() == 0 ? f.getAbsolutePath() : list + "|" + f.getAbsolutePath();
+            prefs.edit().putString("emoji_files", next).apply();
+            if (emojiBarRef != null) addEmojiView(emojiBarRef, f);
+            Toast.makeText(this, "加上了", Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            Toast.makeText(this, "存不下来", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void loadCustomEmoji(LinearLayout bar) {
+        String list = prefs.getString("emoji_files", "");
+        if (list.length() == 0) return;
+        for (String path : list.split("\\|")) {
+            File f = new File(path);
+            if (f.exists()) addEmojiView(bar, f);
+        }
+    }
+
+    private void addEmojiView(LinearLayout bar, final File f) {
+        ImageView iv = new ImageView(this);
+        try {
+            Bitmap b = BitmapFactory.decodeFile(f.getAbsolutePath());
+            if (b == null) return;
+            int size = dp(34);
+            Bitmap scaled = Bitmap.createScaledBitmap(b, size, size, true);
+            iv.setImageBitmap(scaled);
+        } catch (Exception e) {
+            return;
+        }
+        iv.setPadding(dp(4), dp(2), dp(4), dp(2));
+        iv.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) { sendEmojiFile(f); }
+        });
+        bar.addView(iv, bar.getChildCount() - 1);
+    }
+
+    private void sendEmojiFile(final File f) {
+        if (chatMsgsRef == null) return;
+        bubble(chatMsgsRef, chatScrollRef, "[表情]", true);
+        final String base = chatBaseUrl;
+        final String name = chatName;
+        new Thread(new Runnable() {
+            public void run() {
+                final String reply = postImage(base, name, f);
+                ui.post(new Runnable() {
+                    public void run() { bubble(chatMsgsRef, chatScrollRef, reply, false); }
+                });
+            }
+        }).start();
+    }
+
+    private String postImage(String base, String name, File f) {
+        HttpURLConnection conn = null;
+        try {
+            byte[] bytes = new byte[(int) f.length()];
+            InputStream is = new java.io.FileInputStream(f);
+            int off = 0, n;
+            while (off < bytes.length && (n = is.read(bytes, off, bytes.length - off)) > 0) off += n;
+            is.close();
+            String b64 = Base64.encodeToString(bytes, Base64.NO_WRAP);
+            URL u = new URL(base.replaceAll("/+$", "") + "/chat");
+            conn = (HttpURLConnection) u.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setConnectTimeout(8000);
+            conn.setReadTimeout(120000);
+            conn.setDoOutput(true);
+            conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+            JSONObject body = new JSONObject();
+            body.put("name", name);
+            body.put("image", b64);
+            OutputStream os = conn.getOutputStream();
+            os.write(body.toString().getBytes("UTF-8"));
+            os.flush();
+            os.close();
+            int code = conn.getResponseCode();
+            BufferedReader br = new BufferedReader(new InputStreamReader(
+                    code >= 400 ? conn.getErrorStream() : conn.getInputStream(), "UTF-8"));
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = br.readLine()) != null) sb.append(line);
+            br.close();
+            if (code >= 400) return "（图片没发出去：" + code + "）";
+            String r = new JSONObject(sb.toString()).optString("reply", "");
+            return r.length() == 0 ? "（它看到这张表情了）" : r;
+        } catch (Exception e) {
+            return "（表情没发出去：" + e.getClass().getSimpleName() + "）";
+        } finally {
+            if (conn != null) conn.disconnect();
+        }
     }
 
     private String get(String base, String path) {
