@@ -247,7 +247,7 @@ public class MainActivity extends Activity {
                                         org.json.JSONObject m = arr.getJSONObject(i);
                                         String t = m.optString("text", "");
                                         if (t.length() > 0) {
-                                            bubble(msgs, scroll, t, m.optBoolean("mine", false));
+                                            bubble(msgs, scroll, t, !m.optBoolean("mine", false));
                                         }
                                     }
                                 }
