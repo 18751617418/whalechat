@@ -31,6 +31,7 @@ public class MainActivity extends Activity {
 
     private SharedPreferences prefs;
     private final Handler ui = new Handler(Looper.getMainLooper());
+    private static final String DEFAULT_URL = "http://192.168.1.5:8899";
     private static final String[] EMOJI = {"😀","😄","😂","🥺","😭","🤔","👍","🐟","🍚","❤️"};
 
     @Override
@@ -123,7 +124,7 @@ public class MainActivity extends Activity {
     private void editEndpoint(final String name, final int idx) {
         final EditText input = new EditText(this);
         input.setInputType(InputType.TYPE_TEXT_VARIATION_URI);
-        input.setText(prefs.getString("url_" + idx, ""));
+        input.setText(prefs.getString("url_" + idx, DEFAULT_URL));
         input.setHint("http://127.0.0.1:8899");
         new AlertDialog.Builder(this)
                 .setTitle(name + " 的地址")
@@ -230,7 +231,7 @@ public class MainActivity extends Activity {
 
         bubble(msgs, scroll, "我是" + name + "，有什么就说吧。", false);
 
-        final String baseUrl0 = prefs.getString("url_" + idx, "");
+        final String baseUrl0 = prefs.getString("url_" + idx, DEFAULT_URL);
         if (baseUrl0 != null && baseUrl0.length() > 0) {
             new Thread(new Runnable() {
                 public void run() {
@@ -264,7 +265,7 @@ public class MainActivity extends Activity {
                 if (text.length() == 0) return;
                 input.setText("");
                 bubble(msgs, scroll, text, true);
-                final String url = prefs.getString("url_" + idx, "");
+                final String url = prefs.getString("url_" + idx, DEFAULT_URL);
                 if (url == null || url.length() == 0) {
                     bubble(msgs, scroll, "（还没接上" + name + "，长按好友名字填地址）", false);
                     return;
