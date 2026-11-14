@@ -219,7 +219,10 @@ public class MainActivity extends Activity {
         emojiBar.addView(addBtn);
         loadCustomEmoji(emojiBar);
 
-        page.addView(emojiBar);
+        android.widget.HorizontalScrollView hsv = new android.widget.HorizontalScrollView(this);
+        hsv.setHorizontalScrollBarEnabled(false);
+        hsv.addView(emojiBar);
+        page.addView(hsv);
 
         LinearLayout inputBar = new LinearLayout(this);
         inputBar.setOrientation(LinearLayout.HORIZONTAL);
@@ -396,7 +399,7 @@ public class MainActivity extends Activity {
 
     private void sendEmojiFile(final File f) {
         if (chatMsgsRef == null) return;
-        bubble(chatMsgsRef, chatScrollRef, "[表情]", true);
+        bubbleImage(chatMsgsRef, chatScrollRef, f);
         final String base = chatBaseUrl;
         final String name = chatName;
         new Thread(new Runnable() {
@@ -505,6 +508,31 @@ public class MainActivity extends Activity {
         } finally {
             if (conn != null) conn.disconnect();
         }
+    }
+
+    private void bubbleImage(LinearLayout box, final ScrollView scroll, File f) {
+        LinearLayout holder = new LinearLayout(this);
+        holder.setOrientation(LinearLayout.HORIZONTAL);
+        holder.setGravity(Gravity.END);
+        LinearLayout.LayoutParams hp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        hp.setMargins(0, dp(4), 0, dp(4));
+        holder.setLayoutParams(hp);
+        ImageView iv = new ImageView(this);
+        try {
+            Bitmap b = BitmapFactory.decodeFile(f.getAbsolutePath());
+            if (b != null) iv.setImageBitmap(b);
+        } catch (Exception ignored) {
+        }
+        int max = (int) (getResources().getDisplayMetrics().widthPixels * 0.55);
+        iv.setAdjustViewBounds(true);
+        iv.setMaxWidth(max);
+        iv.setMaxHeight(max);
+        holder.addView(iv);
+        box.addView(holder);
+        scroll.post(new Runnable() {
+            public void run() { scroll.fullScroll(View.FOCUS_DOWN); }
+        });
     }
 
     private void bubble(LinearLayout box, final ScrollView scroll, String text, boolean mine) {
