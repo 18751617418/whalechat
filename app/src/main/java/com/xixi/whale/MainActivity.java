@@ -30,6 +30,7 @@ import java.net.URL;
 public class MainActivity extends Activity {
 
     private SharedPreferences prefs;
+    private boolean inChat = false;
     private final Handler ui = new Handler(Looper.getMainLooper());
     private static final String DEFAULT_URL = "http://192.168.1.5:8899";
     private static final String[] EMOJI = {"😀","😄","😂","🥺","😭","🤔","👍","🐟","🍚","❤️"};
@@ -39,6 +40,15 @@ public class MainActivity extends Activity {
         super.onCreate(b);
         prefs = getSharedPreferences("whale", MODE_PRIVATE);
         showList();
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (inChat) {
+            showList();
+            return;
+        }
+        super.onBackPressed();
     }
 
     private int dp(float v) {
@@ -79,6 +89,7 @@ public class MainActivity extends Activity {
         page.addView(friendRow("大鲸", "在服务器那边的那一个", "#8B6CEF", 0));
         page.addView(friendRow("小鲸", "在你手机里的这一个", "#3D6AF2", 1));
 
+        inChat = false;
         setContentView(page);
     }
 
@@ -212,6 +223,7 @@ public class MainActivity extends Activity {
         inputBar.addView(send, blp);
 
         page.addView(inputBar);
+        inChat = true;
         setContentView(page);
 
         emojiBtn.setOnClickListener(new View.OnClickListener() {
