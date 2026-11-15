@@ -521,7 +521,12 @@ public class MainActivity extends Activity {
             public void run() {
                 final String reply = postImage(base, name, f);
                 ui.post(new Runnable() {
-                    public void run() { bubble(chatMsgsRef, chatScrollRef, reply, false); }
+                    public void run() {
+                        bubble(chatMsgsRef, chatScrollRef, reply, false);
+                        appendLocal(chatIdx, false, reply, null);
+                        prefs.edit().putString("last_" + chatIdx,
+                                reply.length() > 24 ? reply.substring(0, 24) + "…" : reply).apply();
+                    }
                 });
             }
         }).start();
