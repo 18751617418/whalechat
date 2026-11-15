@@ -411,6 +411,12 @@ public class MainActivity extends Activity {
                 iv.setOnClickListener(new View.OnClickListener() {
                     public void onClick(View v) { sendEmojiFile(ff); }
                 });
+                iv.setOnLongClickListener(new View.OnLongClickListener() {
+                    public boolean onLongClick(View v) {
+                        removeEmojiFile(ff);
+                        return true;
+                    }
+                });
                 cells.add(iv);
             }
         }
@@ -424,6 +430,25 @@ public class MainActivity extends Activity {
             }
             row.addView(cells.get(i));
         }
+    }
+
+    private void removeEmojiFile(File f) {
+        String list = prefs.getString("emoji_files", "");
+        StringBuilder sb = new StringBuilder();
+        if (list.length() > 0) {
+            for (String path : list.split("\\|")) {
+                if (path.equals(f.getAbsolutePath())) continue;
+                if (sb.length() > 0) sb.append("|");
+                sb.append(path);
+            }
+        }
+        prefs.edit().putString("emoji_files", sb.toString()).apply();
+        try {
+            f.delete();
+        } catch (Exception ignored) {
+        }
+        renderEmojiPanel();
+        Toast.makeText(this, "删掉了", Toast.LENGTH_SHORT).show();
     }
 
     private void loadCustomEmoji(LinearLayout bar) {
