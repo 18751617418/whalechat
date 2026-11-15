@@ -321,67 +321,54 @@ public class MainActivity extends Activity {
 
     private void appendLocal(int idx, boolean mine, String text, String imgPath) {
         try {
-            File f = new File(getFilesDir(), "chatv2_" + idx + ".json");
-            org.json.JSONArray arr = f.exists()
-                    ? new org.json.JSONArray(readFileText(f)) : new org.json.JSONArray();
+            File f = new File(getFilesDir(), "chatv3_" + idx + ".jsonl");
             org.json.JSONObject o = new org.json.JSONObject();
             o.put("mine", mine);
             if (imgPath != null) o.put("img", imgPath); else o.put("text", text);
-            arr.put(o);
-            int start = Math.max(0, arr.length() - 300);
-            org.json.JSONArray cut = new org.json.JSONArray();
-            for (int i = start; i < arr.length(); i++) cut.put(arr.get(i));
-            writeFileText(f, cut.toString());
-        } catch (Exception ignored) {
-        }
-    }
-
-    private String readFileText(File f) {
-        try {
-            BufferedReader br = new BufferedReader(new java.io.FileReader(f));
-            StringBuilder sb = new StringBuilder();
-            String line;
-            while ((line = br.readLine()) != null) sb.append(line);
-            br.close();
-            return sb.toString();
-        } catch (Exception e) {
-            return "[]";
-        }
-    }
-
-    private void writeFileText(File f, String text) {
-        try {
-            FileOutputStream os = new FileOutputStream(f);
-            os.write(text.getBytes("UTF-8"));
+            FileOutputStream os = new FileOutputStream(f, true);
+            os.write((o.toString() + "\n").getBytes("UTF-8"));
+            os.flush();
             os.close();
         } catch (Exception ignored) {
         }
     }
 
-    private void loadLocalHistory(final LinearLayout msgs, final ScrollView scroll,
-                                  final int idx, final String base, final String name) {
-        String raw = "[]";
-        File f = new File(getFilesDir(), "chatv2_" + idx + ".json");
-        if (f.exists()) raw = readFileText(f);
+    private java.util.List<String> readLines(File f) {
+        java.util.List<String> out = new java.util.ArrayList<>();
         try {
-            org.json.JSONArray arr = new org.json.JSONArray(raw);
-            if (arr.length() > 0) {
-                for (int i = 0; i < arr.length(); i++) {
-                    org.json.JSONObject o = arr.getJSONObject(i);
-                    boolean mine = o.optBoolean("mine", false);
-                    String img = o.optString("img", "");
-                    if (img.length() > 0) {
-                        File imf = new File(img);
-                        if (imf.exists()) bubbleImage(msgs, scroll, imf);
-                    } else {
-                        bubble(msgs, scroll, o.optString("text", ""), mine);
-                    }
-                }
-                return;
+            BufferedReader br = new BufferedReader(
+                    new InputStreamReader(new java.io.FileInputStream(f), "UTF-8"));
+            String line;
+            while ((line = br.readLine()) != null) {
+                if (line.trim().length() > 0) out.add(line);
             }
+            br.close();
         } catch (Exception ignored) {
         }
+        return out;
     }
+
+    private void loadLocalHistory(final LinearLayout msgs, final ScrollView scroll,
+                                  final int idx, final String base, final String name) {
+        File f = new File(getFilesDir(), "chatv3_" + idx + ".jsonl");
+        if (!f.exists()) return;
+        for (String line : readLines(f)) {
+            try {
+                org.json.JSONObject o = new org.json.JSONObject(line);
+                boolean mine = o.optBoolean("mine", false);
+                String img = o.optString("img", "");
+                if (img.length() > 0) {
+                    File imf = new File(img);
+                    if (imf.exists()) bubbleImage(msgs, scroll, imf);
+                } else {
+                    String t = o.optString("text", "");
+                    if (t.length() > 0) bubble(msgs, scroll, t, mine);
+                }
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
 
     private void pickEmoji() {
         Intent i = new Intent(Intent.ACTION_GET_CONTENT);
