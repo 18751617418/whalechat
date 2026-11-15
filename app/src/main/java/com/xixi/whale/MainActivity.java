@@ -46,6 +46,7 @@ public class MainActivity extends Activity {
     private ScrollView emojiScrollRef;
     private EditText emojiInputRef;
     private String chatBaseUrl = "";
+    private int chatIdx = 0;
     private String chatName = "";
     private LinearLayout chatMsgsRef;
     private ScrollView chatScrollRef;
@@ -208,6 +209,7 @@ public class MainActivity extends Activity {
         emojiPanelRef = emojiPanel;
         chatBaseUrl = prefs.getString("url_" + idx, DEFAULT_URL);
         chatName = name;
+        chatIdx = idx;
 
         final ScrollView emojiScroll = new ScrollView(this);
         emojiScroll.setVerticalScrollBarEnabled(false);
@@ -281,44 +283,7 @@ public class MainActivity extends Activity {
         bubble(msgs, scroll, "我是" + name + "，有什么就说吧。", false);
 
         final String baseUrl0 = prefs.getString("url_" + idx, DEFAULT_URL);
-        if (baseUrl0 != null && baseUrl0.length() > 0) {
-            new Thread(new Runnable() {
-                public void run() {
-                    final String json = get(baseUrl0, "/history");
-                    ui.post(new Runnable() {
-                        public void run() {
-                            try {
-                                org.json.JSONObject root = new org.json.JSONObject(json);
-                                org.json.JSONArray arr = root.optJSONArray("messages");
-                                if (arr != null && arr.length() > 0) {
-                                    msgs.removeAllViews();
-                                    String[] sents = prefs.getString("sent_images", "").split("\\|");
-                                    int imgIdx = 0;
-                                    for (int i = 0; i < arr.length(); i++) {
-                                        org.json.JSONObject m = arr.getJSONObject(i);
-                                        String t = m.optString("text", "");
-                                        if (t.startsWith("（嘻嘻发来一张表情包）")) {
-                                            if (imgIdx < sents.length) {
-                                                File ff = new File(sents[imgIdx++]);
-                                                if (ff.exists()) {
-                                                    bubbleImage(msgs, scroll, ff);
-                                                    continue;
-                                                }
-                                            }
-                                            continue;
-                                        }
-                                        if (t.length() > 0) {
-                                            bubble(msgs, scroll, t, !m.optBoolean("mine", false));
-                                        }
-                                    }
-                                }
-                            } catch (Exception ignored) {
-                            }
-                        }
-                    });
-                }
-            }).start();
-        }
+        loadLocalHistory(msgs, scroll, idx, baseUrl0, name);
 
         send.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
@@ -326,6 +291,7 @@ public class MainActivity extends Activity {
                 if (text.length() == 0) return;
                 input.setText("");
                 bubble(msgs, scroll, text, true);
+                appendLocal(idx, true, text, null);
                 prefs.edit().putString("last_" + idx, text).apply();
                 final String url = prefs.getString("url_" + idx, DEFAULT_URL);
                 if (url == null || url.length() == 0) {
@@ -341,6 +307,7 @@ public class MainActivity extends Activity {
                             public void run() {
                                 msgs.removeView(thinking);
                                 bubble(msgs, scroll, reply, false);
+                                appendLocal(idx, false, reply, null);
                                 prefs.edit().putString("last_" + idx,
                                         reply.length() > 24 ? reply.substring(0, 24) + "…" : reply).apply();
                             }
@@ -351,6 +318,93 @@ public class MainActivity extends Activity {
         });
     }
 
+
+    private void appendLocal(int idx, boolean mine, String text, String imgPath) {
+        try {
+            File f = new File(getFilesDir(), "chat_" + idx + ".json");
+            org.json.JSONArray arr = f.exists()
+                    ? new org.json.JSONArray(readFileText(f)) : new org.json.JSONArray();
+            org.json.JSONObject o = new org.json.JSONObject();
+            o.put("mine", mine);
+            if (imgPath != null) o.put("img", imgPath); else o.put("text", text);
+            arr.put(o);
+            int start = Math.max(0, arr.length() - 300);
+            org.json.JSONArray cut = new org.json.JSONArray();
+            for (int i = start; i < arr.length(); i++) cut.put(arr.get(i));
+            writeFileText(f, cut.toString());
+        } catch (Exception ignored) {
+        }
+    }
+
+    private String readFileText(File f) {
+        try {
+            BufferedReader br = new BufferedReader(new java.io.FileReader(f));
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = br.readLine()) != null) sb.append(line);
+            br.close();
+            return sb.toString();
+        } catch (Exception e) {
+            return "[]";
+        }
+    }
+
+    private void writeFileText(File f, String text) {
+        try {
+            FileOutputStream os = new FileOutputStream(f);
+            os.write(text.getBytes("UTF-8"));
+            os.close();
+        } catch (Exception ignored) {
+        }
+    }
+
+    private void loadLocalHistory(final LinearLayout msgs, final ScrollView scroll,
+                                  final int idx, final String base, final String name) {
+        String raw = "[]";
+        File f = new File(getFilesDir(), "chat_" + idx + ".json");
+        if (f.exists()) raw = readFileText(f);
+        try {
+            org.json.JSONArray arr = new org.json.JSONArray(raw);
+            if (arr.length() > 0) {
+                for (int i = 0; i < arr.length(); i++) {
+                    org.json.JSONObject o = arr.getJSONObject(i);
+                    boolean mine = o.optBoolean("mine", false);
+                    String img = o.optString("img", "");
+                    if (img.length() > 0) {
+                        File imf = new File(img);
+                        if (imf.exists()) bubbleImage(msgs, scroll, imf);
+                    } else {
+                        bubble(msgs, scroll, o.optString("text", ""), mine);
+                    }
+                }
+                return;
+            }
+        } catch (Exception ignored) {
+        }
+        // 本地还是空的：去服务端拉一次，转存到本地
+        new Thread(new Runnable() {
+            public void run() {
+                final String json = get(base, "/history");
+                ui.post(new Runnable() {
+                    public void run() {
+                        try {
+                            org.json.JSONArray arr = new org.json.JSONObject(json).optJSONArray("messages");
+                            if (arr == null) return;
+                            for (int i = 0; i < arr.length(); i++) {
+                                org.json.JSONObject m = arr.getJSONObject(i);
+                                String t = m.optString("text", "");
+                                if (t.length() == 0 || t.startsWith("（嘻嘻发来一张表情包）")) continue;
+                                boolean aiSaid = m.optBoolean("mine", false);
+                                bubble(msgs, scroll, t, !aiSaid);
+                                appendLocal(idx, !aiSaid, t, null);
+                            }
+                        } catch (Exception ignored) {
+                        }
+                    }
+                });
+            }
+        }).start();
+    }
 
     private void pickEmoji() {
         Intent i = new Intent(Intent.ACTION_GET_CONTENT);
@@ -493,6 +547,7 @@ public class MainActivity extends Activity {
     private void sendEmojiFile(final File f) {
         if (chatMsgsRef == null) return;
         bubbleImage(chatMsgsRef, chatScrollRef, f);
+        appendLocal(chatIdx, true, "", f.getAbsolutePath());
         String sents = prefs.getString("sent_images", "");
         prefs.edit().putString("sent_images",
                 sents.length() == 0 ? f.getAbsolutePath() : sents + "|" + f.getAbsolutePath()).apply();
