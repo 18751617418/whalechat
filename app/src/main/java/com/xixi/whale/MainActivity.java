@@ -215,7 +215,7 @@ public class MainActivity extends Activity {
         emojiScroll.setVisibility(View.GONE);
         emojiScrollRef = emojiScroll;
         LinearLayout.LayoutParams esp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(158));
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(210));
         page.addView(emojiScroll, esp);
 
         LinearLayout inputBar = new LinearLayout(this);
@@ -360,8 +360,8 @@ public class MainActivity extends Activity {
     }
 
     private LinearLayout.LayoutParams cellParams() {
-        int w = (getResources().getDisplayMetrics().widthPixels - dp(12)) / 6;
-        return new LinearLayout.LayoutParams(w, dp(52));
+        int w = (getResources().getDisplayMetrics().widthPixels - dp(12)) / 7;
+        return new LinearLayout.LayoutParams(w, dp(56));
     }
 
     private void renderEmojiPanel() {
@@ -407,7 +407,7 @@ public class MainActivity extends Activity {
         });
         cells.add(add);
 
-        int perRow = 6;
+        int perRow = 7;
         LinearLayout row = null;
         for (int i = 0; i < cells.size(); i++) {
             if (i % perRow == 0) {
