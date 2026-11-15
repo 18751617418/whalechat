@@ -321,7 +321,7 @@ public class MainActivity extends Activity {
 
     private void appendLocal(int idx, boolean mine, String text, String imgPath) {
         try {
-            File f = new File(getFilesDir(), "chat_" + idx + ".json");
+            File f = new File(getFilesDir(), "chatv2_" + idx + ".json");
             org.json.JSONArray arr = f.exists()
                     ? new org.json.JSONArray(readFileText(f)) : new org.json.JSONArray();
             org.json.JSONObject o = new org.json.JSONObject();
@@ -361,7 +361,7 @@ public class MainActivity extends Activity {
     private void loadLocalHistory(final LinearLayout msgs, final ScrollView scroll,
                                   final int idx, final String base, final String name) {
         String raw = "[]";
-        File f = new File(getFilesDir(), "chat_" + idx + ".json");
+        File f = new File(getFilesDir(), "chatv2_" + idx + ".json");
         if (f.exists()) raw = readFileText(f);
         try {
             org.json.JSONArray arr = new org.json.JSONArray(raw);
@@ -381,29 +381,6 @@ public class MainActivity extends Activity {
             }
         } catch (Exception ignored) {
         }
-        // 本地还是空的：去服务端拉一次，转存到本地
-        new Thread(new Runnable() {
-            public void run() {
-                final String json = get(base, "/history");
-                ui.post(new Runnable() {
-                    public void run() {
-                        try {
-                            org.json.JSONArray arr = new org.json.JSONObject(json).optJSONArray("messages");
-                            if (arr == null) return;
-                            for (int i = 0; i < arr.length(); i++) {
-                                org.json.JSONObject m = arr.getJSONObject(i);
-                                String t = m.optString("text", "");
-                                if (t.length() == 0 || t.startsWith("（嘻嘻发来一张表情包）")) continue;
-                                boolean aiSaid = m.optBoolean("mine", false);
-                                bubble(msgs, scroll, t, !aiSaid);
-                                appendLocal(idx, !aiSaid, t, null);
-                            }
-                        } catch (Exception ignored) {
-                        }
-                    }
-                });
-            }
-        }).start();
     }
 
     private void pickEmoji() {
