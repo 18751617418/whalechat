@@ -216,7 +216,7 @@ public class MainActivity extends Activity {
         emojiScrollRef = emojiScroll;
         LinearLayout.LayoutParams esp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(210));
-        page.addView(emojiScroll, esp);
+        // 面板等输入栏建好后再挂上去，位置在工具条下面
 
         LinearLayout inputBar = new LinearLayout(this);
         inputBar.setOrientation(LinearLayout.HORIZONTAL);
@@ -225,8 +225,7 @@ public class MainActivity extends Activity {
         inputBar.setBackgroundColor(Color.WHITE);
 
         TextView emojiBtn = label("☺", 22, Color.parseColor("#3D6AF2"), false);
-        emojiBtn.setPadding(dp(8), dp(2), dp(10), dp(2));
-        inputBar.addView(emojiBtn);
+        emojiBtn.setPadding(dp(14), dp(2), dp(14), dp(2));
 
         final EditText input = new EditText(this);
         input.setHint("说点什么");
@@ -249,14 +248,23 @@ public class MainActivity extends Activity {
         blp.setMargins(dp(8), 0, 0, 0);
         inputBar.addView(send, blp);
 
+        page.addView(inputBar);
+
+        LinearLayout toolBar = new LinearLayout(this);
+        toolBar.setOrientation(LinearLayout.HORIZONTAL);
+        toolBar.setGravity(Gravity.CENTER_VERTICAL);
+        toolBar.setBackgroundColor(Color.WHITE);
+        toolBar.setPadding(dp(10), 0, dp(10), dp(14));
+        toolBar.addView(emojiBtn);
+
         TextView plusBtn = label("＋", 22, Color.parseColor("#3D6AF2"), false);
-        plusBtn.setPadding(dp(10), 0, dp(4), 0);
+        plusBtn.setPadding(dp(14), dp(2), dp(14), dp(2));
         plusBtn.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) { pickEmoji(); }
         });
-        inputBar.addView(plusBtn);
-
-        page.addView(inputBar);
+        toolBar.addView(plusBtn);
+        page.addView(toolBar);
+        page.addView(emojiScroll, esp);
         inChat = true;
         setContentView(page);
 
