@@ -292,9 +292,21 @@ public class MainActivity extends Activity {
                                 org.json.JSONArray arr = root.optJSONArray("messages");
                                 if (arr != null && arr.length() > 0) {
                                     msgs.removeAllViews();
+                                    String[] sents = prefs.getString("sent_images", "").split("\\|");
+                                    int imgIdx = 0;
                                     for (int i = 0; i < arr.length(); i++) {
                                         org.json.JSONObject m = arr.getJSONObject(i);
                                         String t = m.optString("text", "");
+                                        if (t.startsWith("（嘻嘻发来一张表情包）")) {
+                                            if (imgIdx < sents.length) {
+                                                File ff = new File(sents[imgIdx++]);
+                                                if (ff.exists()) {
+                                                    bubbleImage(msgs, scroll, ff);
+                                                    continue;
+                                                }
+                                            }
+                                            continue;
+                                        }
                                         if (t.length() > 0) {
                                             bubble(msgs, scroll, t, !m.optBoolean("mine", false));
                                         }
@@ -481,6 +493,9 @@ public class MainActivity extends Activity {
     private void sendEmojiFile(final File f) {
         if (chatMsgsRef == null) return;
         bubbleImage(chatMsgsRef, chatScrollRef, f);
+        String sents = prefs.getString("sent_images", "");
+        prefs.edit().putString("sent_images",
+                sents.length() == 0 ? f.getAbsolutePath() : sents + "|" + f.getAbsolutePath()).apply();
         final String base = chatBaseUrl;
         final String name = chatName;
         new Thread(new Runnable() {
