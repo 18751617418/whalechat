@@ -42,7 +42,9 @@ public class MainActivity extends Activity {
     private SharedPreferences prefs;
     private boolean inChat = false;
     private static final int REQ_PICK = 1001;
-    private LinearLayout emojiBarRef;
+    private LinearLayout emojiPanelRef;
+    private ScrollView emojiScrollRef;
+    private EditText emojiInputRef;
     private String chatBaseUrl = "";
     private String chatName = "";
     private LinearLayout chatMsgsRef;
@@ -199,32 +201,22 @@ public class MainActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f);
         page.addView(scroll, slp);
 
-        final LinearLayout emojiBar = new LinearLayout(this);
-        emojiBar.setOrientation(LinearLayout.HORIZONTAL);
-        emojiBar.setBackgroundColor(Color.WHITE);
-        emojiBar.setVisibility(View.GONE);
-        emojiBar.setPadding(dp(8), dp(6), dp(8), dp(6));
-        for (final String e : EMOJI) {
-            TextView t = label(e, 22, Color.BLACK, false);
-            t.setPadding(dp(8), dp(2), dp(8), dp(2));
-            emojiBar.addView(t);
-        }
-        emojiBarRef = emojiBar;
+        final LinearLayout emojiPanel = new LinearLayout(this);
+        emojiPanel.setOrientation(LinearLayout.VERTICAL);
+        emojiPanel.setBackgroundColor(Color.WHITE);
+        emojiPanel.setPadding(dp(6), dp(6), dp(6), dp(6));
+        emojiPanelRef = emojiPanel;
         chatBaseUrl = prefs.getString("url_" + idx, DEFAULT_URL);
         chatName = name;
 
-        TextView addBtn = label("＋", 20, Color.parseColor("#3D6AF2"), true);
-        addBtn.setPadding(dp(8), dp(2), dp(8), dp(2));
-        addBtn.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) { pickEmoji(); }
-        });
-        emojiBar.addView(addBtn);
-        loadCustomEmoji(emojiBar);
-
-        android.widget.HorizontalScrollView hsv = new android.widget.HorizontalScrollView(this);
-        hsv.setHorizontalScrollBarEnabled(false);
-        hsv.addView(emojiBar);
-        page.addView(hsv);
+        final ScrollView emojiScroll = new ScrollView(this);
+        emojiScroll.setVerticalScrollBarEnabled(false);
+        emojiScroll.addView(emojiPanel);
+        emojiScroll.setVisibility(View.GONE);
+        emojiScrollRef = emojiScroll;
+        LinearLayout.LayoutParams esp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(158));
+        page.addView(emojiScroll, esp);
 
         LinearLayout inputBar = new LinearLayout(this);
         inputBar.setOrientation(LinearLayout.HORIZONTAL);
@@ -263,21 +255,13 @@ public class MainActivity extends Activity {
 
         emojiBtn.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                emojiBar.setVisibility(emojiBar.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE);
+                emojiScroll.setVisibility(emojiScroll.getVisibility() == View.VISIBLE
+                        ? View.GONE : View.VISIBLE);
             }
         });
 
-        for (int i = 0; i < emojiBar.getChildCount(); i++) {
-            View child = emojiBar.getChildAt(i);
-            if (!(child instanceof TextView)) continue;
-            final TextView t = (TextView) child;
-            if ("＋".equals(t.getText().toString())) continue;
-            t.setOnClickListener(new View.OnClickListener() {
-                public void onClick(View v) {
-                    input.append(t.getText().toString());
-                }
-            });
-        }
+        emojiInputRef = input;
+        renderEmojiPanel();
 
         bubble(msgs, scroll, "我是" + name + "，有什么就说吧。", false);
 
@@ -368,10 +352,70 @@ public class MainActivity extends Activity {
             String list = prefs.getString("emoji_files", "");
             String next = list.length() == 0 ? f.getAbsolutePath() : list + "|" + f.getAbsolutePath();
             prefs.edit().putString("emoji_files", next).apply();
-            if (emojiBarRef != null) addEmojiView(emojiBarRef, f);
+            renderEmojiPanel();
             Toast.makeText(this, "加上了", Toast.LENGTH_SHORT).show();
         } catch (Exception e) {
             Toast.makeText(this, "存不下来", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private LinearLayout.LayoutParams cellParams() {
+        int w = (getResources().getDisplayMetrics().widthPixels - dp(12)) / 6;
+        return new LinearLayout.LayoutParams(w, dp(52));
+    }
+
+    private void renderEmojiPanel() {
+        if (emojiPanelRef == null || emojiInputRef == null) return;
+        emojiPanelRef.removeAllViews();
+        java.util.List<View> cells = new java.util.ArrayList<>();
+        for (final String e : EMOJI) {
+            TextView t = label(e, 24, Color.BLACK, false);
+            t.setGravity(Gravity.CENTER);
+            t.setLayoutParams(cellParams());
+            t.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View v) { emojiInputRef.append(e); }
+            });
+            cells.add(t);
+        }
+        String list = prefs.getString("emoji_files", "");
+        if (list.length() > 0) {
+            for (String path : list.split("\\|")) {
+                File f = new File(path);
+                if (!f.exists()) continue;
+                ImageView iv = new ImageView(this);
+                try {
+                    Bitmap b = BitmapFactory.decodeFile(f.getAbsolutePath());
+                    if (b == null) continue;
+                    int size = dp(40);
+                    iv.setImageBitmap(Bitmap.createScaledBitmap(b, size, size, true));
+                } catch (Exception ex) {
+                    continue;
+                }
+                iv.setLayoutParams(cellParams());
+                final File ff = f;
+                iv.setOnClickListener(new View.OnClickListener() {
+                    public void onClick(View v) { sendEmojiFile(ff); }
+                });
+                cells.add(iv);
+            }
+        }
+        TextView add = label("＋", 24, Color.parseColor("#3D6AF2"), true);
+        add.setGravity(Gravity.CENTER);
+        add.setLayoutParams(cellParams());
+        add.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) { pickEmoji(); }
+        });
+        cells.add(add);
+
+        int perRow = 6;
+        LinearLayout row = null;
+        for (int i = 0; i < cells.size(); i++) {
+            if (i % perRow == 0) {
+                row = new LinearLayout(this);
+                row.setOrientation(LinearLayout.HORIZONTAL);
+                emojiPanelRef.addView(row);
+            }
+            row.addView(cells.get(i));
         }
     }
 
