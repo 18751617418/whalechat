@@ -249,6 +249,13 @@ public class MainActivity extends Activity {
         blp.setMargins(dp(8), 0, 0, 0);
         inputBar.addView(send, blp);
 
+        TextView plusBtn = label("＋", 22, Color.parseColor("#3D6AF2"), false);
+        plusBtn.setPadding(dp(10), 0, dp(4), 0);
+        plusBtn.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) { pickEmoji(); }
+        });
+        inputBar.addView(plusBtn);
+
         page.addView(inputBar);
         inChat = true;
         setContentView(page);
@@ -399,14 +406,6 @@ public class MainActivity extends Activity {
                 cells.add(iv);
             }
         }
-        TextView add = label("＋", 24, Color.parseColor("#3D6AF2"), true);
-        add.setGravity(Gravity.CENTER);
-        add.setLayoutParams(cellParams());
-        add.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) { pickEmoji(); }
-        });
-        cells.add(add);
-
         int perRow = 7;
         LinearLayout row = null;
         for (int i = 0; i < cells.size(); i++) {
