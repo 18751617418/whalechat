@@ -131,7 +131,9 @@ public class MainActivity extends Activity {
         LinearLayout texts = new LinearLayout(this);
         texts.setOrientation(LinearLayout.VERTICAL);
         texts.addView(label(name, 17, Color.parseColor("#1B2130"), true));
-        TextView d = label(desc, 12, Color.parseColor("#8A93A6"), false);
+        String lastMsg = prefs.getString("last_" + idx, "");
+        TextView d = label(lastMsg.length() > 0 ? lastMsg : desc, 12,
+                lastMsg.length() > 0 ? Color.parseColor("#5A6478") : Color.parseColor("#8A93A6"), false);
         d.setPadding(0, dp(3), 0, 0);
         texts.addView(d);
         LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(0,
@@ -313,6 +315,7 @@ public class MainActivity extends Activity {
                 if (text.length() == 0) return;
                 input.setText("");
                 bubble(msgs, scroll, text, true);
+                prefs.edit().putString("last_" + idx, text).apply();
                 final String url = prefs.getString("url_" + idx, DEFAULT_URL);
                 if (url == null || url.length() == 0) {
                     bubble(msgs, scroll, "（还没接上" + name + "，长按好友名字填地址）", false);
@@ -327,6 +330,8 @@ public class MainActivity extends Activity {
                             public void run() {
                                 msgs.removeView(thinking);
                                 bubble(msgs, scroll, reply, false);
+                                prefs.edit().putString("last_" + idx,
+                                        reply.length() > 24 ? reply.substring(0, 24) + "…" : reply).apply();
                             }
                         });
                     }
@@ -543,6 +548,18 @@ public class MainActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         hp.setMargins(0, dp(4), 0, dp(4));
         holder.setLayoutParams(hp);
+
+        if (!mine) {
+            TextView av = label(chatName.length() > 0 ? chatName.substring(0, 1) : "鲸",
+                    13, Color.WHITE, true);
+            av.setGravity(Gravity.CENTER);
+            av.setBackground(round(chatName.equals("大鲸")
+                    ? Color.parseColor("#8B6CEF") : Color.parseColor("#3D6AF2"), 19));
+            LinearLayout.LayoutParams alp = new LinearLayout.LayoutParams(dp(38), dp(38));
+            alp.setMargins(0, 0, dp(8), 0);
+            av.setLayoutParams(alp);
+            holder.addView(av);
+        }
 
         TextView t = new TextView(this);
         t.setText(text);
