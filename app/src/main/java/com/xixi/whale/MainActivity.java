@@ -755,15 +755,29 @@ public class MainActivity extends Activity {
         holder.setLayoutParams(hp);
 
         if (!mine) {
-            TextView av = label(chatName.length() > 0 ? chatName.substring(0, 1) : "鲸",
-                    13, Color.WHITE, true);
-            av.setGravity(Gravity.CENTER);
-            av.setBackground(round(chatName.equals("大鲸")
-                    ? Color.parseColor("#8B6CEF") : Color.parseColor("#3D6AF2"), 19));
-            LinearLayout.LayoutParams alp = new LinearLayout.LayoutParams(dp(38), dp(38));
-            alp.setMargins(0, 0, dp(8), 0);
-            av.setLayoutParams(alp);
-            holder.addView(av);
+            File avFile = avatarFile(chatIdx);
+            if (avFile.exists()) {
+                ImageView iv = new ImageView(this);
+                try {
+                    iv.setImageBitmap(BitmapFactory.decodeFile(avFile.getAbsolutePath()));
+                } catch (Exception ignored) {
+                }
+                iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                LinearLayout.LayoutParams alp = new LinearLayout.LayoutParams(dp(38), dp(38));
+                alp.setMargins(0, 0, dp(8), 0);
+                iv.setLayoutParams(alp);
+                holder.addView(iv);
+            } else {
+                TextView av = label(chatName.length() > 0 ? chatName.substring(0, 1) : "鲸",
+                        13, Color.WHITE, true);
+                av.setGravity(Gravity.CENTER);
+                av.setBackground(round(chatName.equals("大鲸")
+                        ? Color.parseColor("#8B6CEF") : Color.parseColor("#3D6AF2"), 19));
+                LinearLayout.LayoutParams alp = new LinearLayout.LayoutParams(dp(38), dp(38));
+                alp.setMargins(0, 0, dp(8), 0);
+                av.setLayoutParams(alp);
+                holder.addView(av);
+            }
         }
 
         TextView t = new TextView(this);
