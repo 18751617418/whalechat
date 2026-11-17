@@ -55,7 +55,15 @@ public class MainActivity extends Activity {
     private static final String BIG_WHALE_URL = "http://101.37.189.214:8899";
 
     private String defaultUrlFor(int idx) {
-        return idx == 0 ? BIG_WHALE_URL : DEFAULT_URL;
+        String want = idx == 0 ? BIG_WHALE_URL : DEFAULT_URL;
+        String saved = prefs.getString("url_" + idx, "");
+        // 老版本留下的旧地址自动换成新的，省得手动改
+        if (!saved.equals(want) && (saved.length() == 0
+                || saved.equals(DEFAULT_URL) || saved.equals("http://192.168.1.5:8899"))) {
+            prefs.edit().putString("url_" + idx, want).apply();
+            return want;
+        }
+        return saved.length() == 0 ? want : saved;
     }
     private static final String[] EMOJI = {"😀","😂","🥺","😭","👍","❤️"};
 
