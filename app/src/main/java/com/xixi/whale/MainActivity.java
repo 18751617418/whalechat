@@ -136,12 +136,29 @@ public class MainActivity extends Activity {
         lp.setMargins(dp(12), dp(10), dp(12), 0);
         row.setLayoutParams(lp);
 
-        TextView avatar = label(name.substring(0, 1), 18, Color.WHITE, true);
-        avatar.setGravity(Gravity.CENTER);
-        avatar.setBackground(round(Color.parseColor(colorHex), 24));
-        LinearLayout.LayoutParams alp = new LinearLayout.LayoutParams(dp(48), dp(48));
-        alp.setMargins(0, 0, dp(14), 0);
-        avatar.setLayoutParams(alp);
+        View avatar;
+        File avFile = avatarFile(idx);
+        if (avFile.exists()) {
+            ImageView iv = new ImageView(this);
+            try {
+                Bitmap b = BitmapFactory.decodeFile(avFile.getAbsolutePath());
+                iv.setImageBitmap(b);
+            } catch (Exception ignored) {
+            }
+            LinearLayout.LayoutParams alp = new LinearLayout.LayoutParams(dp(48), dp(48));
+            alp.setMargins(0, 0, dp(14), 0);
+            iv.setLayoutParams(alp);
+            iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            avatar = iv;
+        } else {
+            TextView tv = label(name.substring(0, 1), 18, Color.WHITE, true);
+            tv.setGravity(Gravity.CENTER);
+            tv.setBackground(round(Color.parseColor(colorHex), 24));
+            LinearLayout.LayoutParams alp = new LinearLayout.LayoutParams(dp(48), dp(48));
+            alp.setMargins(0, 0, dp(14), 0);
+            tv.setLayoutParams(alp);
+            avatar = tv;
+        }
         row.addView(avatar);
 
         LinearLayout texts = new LinearLayout(this);
@@ -161,9 +178,40 @@ public class MainActivity extends Activity {
             public void onClick(View v) { showChat(name, idx); }
         });
         row.setOnLongClickListener(new View.OnLongClickListener() {
-            public boolean onLongClick(View v) { editEndpoint(name, idx); return true; }
+            public boolean onLongClick(View v) { showFriendMenu(name, idx); return true; }
         });
         return row;
+    }
+
+    private static final int REQ_AVATAR = 1002;
+    private int avatarIdx = 0;
+
+    private void showFriendMenu(final String name, final int idx) {
+        new AlertDialog.Builder(this)
+                .setTitle(name)
+                .setItems(new String[]{"换个头像", "改地址"}, new android.content.DialogInterface.OnClickListener() {
+                    public void onClick(android.content.DialogInterface d, int which) {
+                        if (which == 0) {
+                            avatarIdx = idx;
+                            Intent i = new Intent(Intent.ACTION_GET_CONTENT);
+                            i.setType("image/*");
+                            i.addCategory(Intent.CATEGORY_OPENABLE);
+                            try {
+                                startActivityForResult(Intent.createChooser(i, "选一张当头像"), REQ_AVATAR);
+                            } catch (Exception e) {
+                                Toast.makeText(MainActivity.this, "打不开相册", Toast.LENGTH_SHORT).show();
+                            }
+                        } else {
+                            editEndpoint(name, idx);
+                        }
+                    }
+                })
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private File avatarFile(int idx) {
+        return new File(getFilesDir(), "avatar_" + idx + ".jpg");
     }
 
     private void editEndpoint(final String name, final int idx) {
@@ -397,7 +445,25 @@ public class MainActivity extends Activity {
     @Override
     protected void onActivityResult(int req, int res, Intent data) {
         super.onActivityResult(req, res, data);
-        if (req != REQ_PICK || res != RESULT_OK || data == null || data.getData() == null) return;
+        if (res != RESULT_OK || data == null || data.getData() == null) return;
+        if (req == REQ_AVATAR) {
+            try {
+                InputStream is = getContentResolver().openInputStream(data.getData());
+                File f = avatarFile(avatarIdx);
+                FileOutputStream os = new FileOutputStream(f);
+                byte[] buf = new byte[8192];
+                int n;
+                while ((n = is.read(buf)) > 0) os.write(buf, 0, n);
+                os.close();
+                is.close();
+                Toast.makeText(this, "头像换好了", Toast.LENGTH_SHORT).show();
+                showList();
+            } catch (Exception e) {
+                Toast.makeText(this, "存不下来", Toast.LENGTH_SHORT).show();
+            }
+            return;
+        }
+        if (req != REQ_PICK) return;
         try {
             InputStream is = getContentResolver().openInputStream(data.getData());
             File f = new File(getFilesDir(), "emoji_" + System.currentTimeMillis() + ".jpg");
