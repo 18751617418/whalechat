@@ -52,6 +52,11 @@ public class MainActivity extends Activity {
     private ScrollView chatScrollRef;
     private final Handler ui = new Handler(Looper.getMainLooper());
     private static final String DEFAULT_URL = "http://192.168.1.5:8899";
+    private static final String BIG_WHALE_URL = "http://101.37.189.214:8899";
+
+    private String defaultUrlFor(int idx) {
+        return idx == 0 ? BIG_WHALE_URL : DEFAULT_URL;
+    }
     private static final String[] EMOJI = {"😀","😂","🥺","😭","👍","❤️"};
 
     @Override
@@ -156,7 +161,7 @@ public class MainActivity extends Activity {
     private void editEndpoint(final String name, final int idx) {
         final EditText input = new EditText(this);
         input.setInputType(InputType.TYPE_TEXT_VARIATION_URI);
-        input.setText(prefs.getString("url_" + idx, DEFAULT_URL));
+        input.setText(prefs.getString("url_" + idx, defaultUrlFor(idx)));
         input.setHint("http://127.0.0.1:8899");
         new AlertDialog.Builder(this)
                 .setTitle(name + " 的地址")
@@ -207,7 +212,7 @@ public class MainActivity extends Activity {
         emojiPanel.setBackgroundColor(Color.WHITE);
         emojiPanel.setPadding(dp(6), dp(6), dp(6), dp(6));
         emojiPanelRef = emojiPanel;
-        chatBaseUrl = prefs.getString("url_" + idx, DEFAULT_URL);
+        chatBaseUrl = prefs.getString("url_" + idx, defaultUrlFor(idx));
         chatName = name;
         chatIdx = idx;
 
@@ -282,7 +287,7 @@ public class MainActivity extends Activity {
 
         bubble(msgs, scroll, "我是" + name + "，有什么就说吧。", false);
 
-        final String baseUrl0 = prefs.getString("url_" + idx, DEFAULT_URL);
+        final String baseUrl0 = prefs.getString("url_" + idx, defaultUrlFor(idx));
         loadLocalHistory(msgs, scroll, idx, baseUrl0, name);
 
         send.setOnClickListener(new View.OnClickListener() {
@@ -293,7 +298,7 @@ public class MainActivity extends Activity {
                 bubble(msgs, scroll, text, true);
                 appendLocal(idx, true, text, null);
                 prefs.edit().putString("last_" + idx, text).apply();
-                final String url = prefs.getString("url_" + idx, DEFAULT_URL);
+                final String url = prefs.getString("url_" + idx, defaultUrlFor(idx));
                 if (url == null || url.length() == 0) {
                     bubble(msgs, scroll, "（还没接上" + name + "，长按好友名字填地址）", false);
                     return;
