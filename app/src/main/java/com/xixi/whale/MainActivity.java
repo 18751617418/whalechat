@@ -558,7 +558,7 @@ public class MainActivity extends Activity {
             conn = (HttpURLConnection) u.openConnection();
             conn.setRequestMethod("POST");
             conn.setConnectTimeout(8000);
-            conn.setReadTimeout(120000);
+            conn.setReadTimeout(180000);
             conn.setDoOutput(true);
             conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
             JSONObject body = new JSONObject();
@@ -615,7 +615,7 @@ public class MainActivity extends Activity {
             conn = (HttpURLConnection) u.openConnection();
             conn.setRequestMethod("POST");
             conn.setConnectTimeout(8000);
-            conn.setReadTimeout(60000);
+            conn.setReadTimeout(180000);
             conn.setDoOutput(true);
             conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
             JSONObject body = new JSONObject();
@@ -637,6 +637,9 @@ public class MainActivity extends Activity {
             String r = resp.optString("reply", "");
             return r.length() == 0 ? "（没说话）" : r;
         } catch (Exception e) {
+            if (e instanceof java.net.SocketTimeoutException) {
+                return "（" + name + "还在想，没赶上时间）";
+            }
             return "（连不上" + name + "：" + e.getClass().getSimpleName() + "）";
         } finally {
             if (conn != null) conn.disconnect();
