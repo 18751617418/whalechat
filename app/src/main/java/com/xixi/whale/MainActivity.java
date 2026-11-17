@@ -372,7 +372,7 @@ public class MainActivity extends Activity {
                 String img = o.optString("img", "");
                 if (img.length() > 0) {
                     File imf = new File(img);
-                    if (imf.exists()) bubbleImage(msgs, scroll, imf);
+                    if (imf.exists()) bubbleEmoji(msgs, scroll, imf);
                 } else {
                     String t = o.optString("text", "");
                     if (t.length() > 0) bubble(msgs, scroll, t, mine);
@@ -523,7 +523,7 @@ public class MainActivity extends Activity {
 
     private void sendEmojiFile(final File f) {
         if (chatMsgsRef == null) return;
-        bubbleImage(chatMsgsRef, chatScrollRef, f);
+        bubbleEmoji(chatMsgsRef, chatScrollRef, f);
         appendLocal(chatIdx, true, "", f.getAbsolutePath());
         String sents = prefs.getString("sent_images", "");
         prefs.edit().putString("sent_images",
@@ -643,7 +643,16 @@ public class MainActivity extends Activity {
         }
     }
 
+    private void bubbleEmoji(LinearLayout box, final ScrollView scroll, File f) {
+        bubbleImageSized(box, scroll, f, dp(110));
+    }
+
     private void bubbleImage(LinearLayout box, final ScrollView scroll, File f) {
+        int max = (int) (getResources().getDisplayMetrics().widthPixels * 0.55);
+        bubbleImageSized(box, scroll, f, max);
+    }
+
+    private void bubbleImageSized(LinearLayout box, final ScrollView scroll, File f, int limit) {
         LinearLayout holder = new LinearLayout(this);
         holder.setOrientation(LinearLayout.HORIZONTAL);
         holder.setGravity(Gravity.END);
@@ -657,10 +666,9 @@ public class MainActivity extends Activity {
             if (b != null) iv.setImageBitmap(b);
         } catch (Exception ignored) {
         }
-        int max = (int) (getResources().getDisplayMetrics().widthPixels * 0.55);
         iv.setAdjustViewBounds(true);
-        iv.setMaxWidth(max);
-        iv.setMaxHeight(max);
+        iv.setMaxWidth(limit);
+        iv.setMaxHeight(limit);
         holder.addView(iv);
         box.addView(holder);
         scroll.post(new Runnable() {
