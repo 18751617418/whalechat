@@ -103,6 +103,63 @@ public class MainActivity extends Activity {
         return t;
     }
 
+    private void autoFixLocalUrl() {
+        new Thread(new Runnable() {
+            public void run() {
+                String saved = prefs.getString("url_1", DEFAULT_URL);
+                String prefix = "192.168.1.";
+                int idx = saved.indexOf("//");
+                if (idx > 0) {
+                    String host = saved.substring(idx + 2);
+                    int colon = host.indexOf(':');
+                    if (colon > 0) host = host.substring(0, colon);
+                    int dot = host.lastIndexOf('.');
+                    if (dot > 0) prefix = host.substring(0, dot + 1);
+                }
+                final String found = scanLan(prefix);
+                if (found.length() == 0) return;
+                String cur = prefs.getString("url_1", DEFAULT_URL);
+                if (!found.equals(cur)) {
+                    prefs.edit().putString("url_1", found).apply();
+                    ui.post(new Runnable() {
+                        public void run() {
+                            Toast.makeText(MainActivity.this, "找到新地址：" + found, Toast.LENGTH_SHORT).show();
+                            showList();
+                        }
+                    });
+                }
+            }
+        }).start();
+    }
+
+    private String scanLan(String prefix) {
+        java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(24);
+        final java.util.concurrent.atomic.AtomicReference<String> hit =
+                new java.util.concurrent.atomic.AtomicReference<>("");
+        for (int i = 1; i <= 254; i++) {
+            final String ip = prefix + i;
+            pool.submit(new Runnable() {
+                public void run() {
+                    if (hit.get().length() > 0) return;
+                    java.net.Socket sock = new java.net.Socket();
+                    try {
+                        sock.connect(new java.net.InetSocketAddress(ip, 8899), 220);
+                        hit.compareAndSet("", "http://" + ip + ":8899");
+                    } catch (Exception ignored) {
+                    } finally {
+                        try { sock.close(); } catch (Exception ignored) {}
+                    }
+                }
+            });
+        }
+        pool.shutdown();
+        try {
+            pool.awaitTermination(6, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (Exception ignored) {
+        }
+        return hit.get();
+    }
+
     private void showList() {
         LinearLayout page = new LinearLayout(this);
         page.setOrientation(LinearLayout.VERTICAL);
@@ -118,6 +175,7 @@ public class MainActivity extends Activity {
         bar.addView(sub);
         page.addView(bar);
 
+        autoFixLocalUrl();
         page.addView(friendRow("大鲸", "在服务器那边的那一个", "#8B6CEF", 0));
         page.addView(friendRow("小鲸", "在你手机里的这一个", "#3D6AF2", 1));
 
