@@ -42,6 +42,7 @@ public class MainActivity extends Activity {
     private SharedPreferences prefs;
     private boolean inChat = false;
     private static final int REQ_PICK = 1001;
+    private static final int REQ_PHOTO = 1003;
     private LinearLayout emojiPanelRef;
     private ScrollView emojiScrollRef;
     private EditText emojiInputRef;
@@ -384,6 +385,13 @@ public class MainActivity extends Activity {
             public void onClick(View v) { pickEmoji(); }
         });
         toolBar.addView(plusBtn);
+
+        TextView picBtn = label("图", 18, Color.parseColor("#3D6AF2"), false);
+        picBtn.setPadding(dp(16), dp(2), dp(14), dp(2));
+        picBtn.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) { pickPhoto(); }
+        });
+        toolBar.addView(picBtn);
         page.addView(toolBar);
         page.addView(emojiScroll, esp);
         inChat = true;
@@ -495,6 +503,17 @@ public class MainActivity extends Activity {
     }
 
 
+    private void pickPhoto() {
+        Intent i = new Intent(Intent.ACTION_GET_CONTENT);
+        i.setType("image/*");
+        i.addCategory(Intent.CATEGORY_OPENABLE);
+        try {
+            startActivityForResult(Intent.createChooser(i, "选一张发过去"), REQ_PHOTO);
+        } catch (Exception e) {
+            Toast.makeText(this, "打不开相册", Toast.LENGTH_SHORT).show();
+        }
+    }
+
     private void pickEmoji() {
         Intent i = new Intent(Intent.ACTION_GET_CONTENT);
         i.setType("image/*");
@@ -524,6 +543,22 @@ public class MainActivity extends Activity {
                 showList();
             } catch (Exception e) {
                 Toast.makeText(this, "存不下来", Toast.LENGTH_SHORT).show();
+            }
+            return;
+        }
+        if (req == REQ_PHOTO) {
+            try {
+                InputStream is = getContentResolver().openInputStream(data.getData());
+                File f = new File(getFilesDir(), "photo_" + System.currentTimeMillis() + ".jpg");
+                FileOutputStream os = new FileOutputStream(f);
+                byte[] buf = new byte[8192];
+                int n;
+                while ((n = is.read(buf)) > 0) os.write(buf, 0, n);
+                os.close();
+                is.close();
+                sendEmojiFile(f);
+            } catch (Exception e) {
+                Toast.makeText(this, "图片没读出来", Toast.LENGTH_SHORT).show();
             }
             return;
         }
