@@ -243,6 +243,7 @@ public class MainActivity extends Activity {
     }
 
     private static final int REQ_AVATAR = 1002;
+    private static final int REQ_FILE = 1003;
     private int avatarIdx = 0;
 
     private void showFriendMenu(final String name, final int idx) {
@@ -385,6 +386,22 @@ public class MainActivity extends Activity {
             public void onClick(View v) { pickEmoji(); }
         });
         toolBar.addView(plusBtn);
+
+        TextView fileBtn = label("文", 18, Color.parseColor("#3D6AF2"), true);
+        fileBtn.setPadding(dp(14), dp(2), dp(14), dp(2));
+        fileBtn.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                Intent i = new Intent(Intent.ACTION_GET_CONTENT);
+                i.setType("*/*");
+                i.addCategory(Intent.CATEGORY_OPENABLE);
+                try {
+                    startActivityForResult(Intent.createChooser(i, "选一个文件"), REQ_FILE);
+                } catch (Exception e) {
+                    Toast.makeText(MainActivity.this, "打不开文件选择", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+        toolBar.addView(fileBtn);
 
         TextView picBtn = label("图", 18, Color.parseColor("#3D6AF2"), false);
         picBtn.setPadding(dp(16), dp(2), dp(14), dp(2));
@@ -529,6 +546,42 @@ public class MainActivity extends Activity {
     protected void onActivityResult(int req, int res, Intent data) {
         super.onActivityResult(req, res, data);
         if (res != RESULT_OK || data == null || data.getData() == null) return;
+        if (req == REQ_FILE) {
+            try {
+                Uri uri = data.getData();
+                String name = "file";
+                android.database.Cursor c = getContentResolver().query(uri, null, null, null, null);
+                if (c != null) {
+                    int i = c.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME);
+                    if (i >= 0 && c.moveToFirst()) name = c.getString(i);
+                    c.close();
+                }
+                InputStream is = getContentResolver().openInputStream(uri);
+                ByteArrayOutputStream bos = new ByteArrayOutputStream();
+                byte[] buf = new byte[8192];
+                int n;
+                while ((n = is.read(buf)) > 0) bos.write(buf, 0, n);
+                is.close();
+                final String fname = name;
+                final String b64 = Base64.encodeToString(bos.toByteArray(), Base64.NO_WRAP);
+                bubble(chatMsgsRef, chatScrollRef, "[文件] " + fname, true);
+                appendLocal(chatIdx, true, "[文件] " + fname, null);
+                new Thread(new Runnable() {
+                    public void run() {
+                        final String reply = postFile(chatBaseUrl, fname, b64);
+                        ui.post(new Runnable() {
+                            public void run() {
+                                bubble(chatMsgsRef, chatScrollRef, reply, false);
+                                appendLocal(chatIdx, false, reply, null);
+                            }
+                        });
+                    }
+                }).start();
+            } catch (Exception e) {
+                Toast.makeText(this, "文件读不出来", Toast.LENGTH_SHORT).show();
+            }
+            return;
+        }
         if (req == REQ_AVATAR) {
             try {
                 InputStream is = getContentResolver().openInputStream(data.getData());
@@ -708,6 +761,41 @@ public class MainActivity extends Activity {
                 });
             }
         }).start();
+    }
+
+    private String postFile(String base, String filename, String b64) {
+        HttpURLConnection conn = null;
+        try {
+            URL u = new URL(base.replaceAll("/+$", "") + "/chat");
+            conn = (HttpURLConnection) u.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setConnectTimeout(8000);
+            conn.setReadTimeout(180000);
+            conn.setDoOutput(true);
+            conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+            JSONObject body = new JSONObject();
+            body.put("name", chatName);
+            body.put("filename", filename);
+            body.put("file", b64);
+            OutputStream os = conn.getOutputStream();
+            os.write(body.toString().getBytes("UTF-8"));
+            os.flush();
+            os.close();
+            int code = conn.getResponseCode();
+            BufferedReader br = new BufferedReader(new InputStreamReader(
+                    code >= 400 ? conn.getErrorStream() : conn.getInputStream(), "UTF-8"));
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = br.readLine()) != null) sb.append(line);
+            br.close();
+            if (code >= 400) return "（文件没发出去：" + code + "）";
+            String r = new JSONObject(sb.toString()).optString("reply", "");
+            return r.length() == 0 ? "（它收到文件了）" : r;
+        } catch (Exception e) {
+            return "（文件没发出去：" + e.getClass().getSimpleName() + "）";
+        } finally {
+            if (conn != null) conn.disconnect();
+        }
     }
 
     private String postImage(String base, String name, File f) {
