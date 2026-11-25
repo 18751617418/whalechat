@@ -409,6 +409,7 @@ public class MainActivity extends Activity {
                 String text = input.getText().toString().trim();
                 if (text.length() == 0) return;
                 input.setText("");
+                timeTag(msgs, System.currentTimeMillis());
                 bubble(msgs, scroll, text, true);
                 appendLocal(idx, true, text, null);
                 prefs.edit().putString("last_" + idx, text).apply();
@@ -425,6 +426,7 @@ public class MainActivity extends Activity {
                         ui.post(new Runnable() {
                             public void run() {
                                 msgs.removeView(thinking);
+                                timeTag(msgs, System.currentTimeMillis());
                                 bubble(msgs, scroll, reply, false);
                                 appendLocal(idx, false, reply, null);
                                 prefs.edit().putString("last_" + idx,
@@ -443,6 +445,7 @@ public class MainActivity extends Activity {
             File f = new File(getFilesDir(), "chatv3_" + idx + ".jsonl");
             org.json.JSONObject o = new org.json.JSONObject();
             o.put("mine", mine);
+            o.put("t", System.currentTimeMillis());
             if (imgPath != null) o.put("img", imgPath); else o.put("text", text);
             FileOutputStream os = new FileOutputStream(f, true);
             os.write((o.toString() + "\n").getBytes("UTF-8"));
@@ -481,7 +484,10 @@ public class MainActivity extends Activity {
                     if (imf.exists()) bubbleEmoji(msgs, scroll, imf);
                 } else {
                     String t = o.optString("text", "");
-                    if (t.length() > 0) bubble(msgs, scroll, t, mine);
+                    if (t.length() > 0) {
+                        timeTag(msgs, o.optLong("t", 0L));
+                        bubble(msgs, scroll, t, mine);
+                    }
                 }
             } catch (Exception ignored) {
             }
@@ -801,6 +807,21 @@ public class MainActivity extends Activity {
         scroll.post(new Runnable() {
             public void run() { scroll.fullScroll(View.FOCUS_DOWN); }
         });
+    }
+
+    private void timeTag(LinearLayout box, long ts) {
+        if (ts <= 0L) return;
+        TextView t = new TextView(this);
+        t.setText(new java.text.SimpleDateFormat("MM-dd HH:mm",
+                java.util.Locale.CHINA).format(new java.util.Date(ts)));
+        t.setTextSize(11);
+        t.setTextColor(Color.parseColor("#8A93A6"));
+        t.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(0, dp(6), 0, dp(2));
+        t.setLayoutParams(lp);
+        box.addView(t);
     }
 
     private void bubble(LinearLayout box, final ScrollView scroll, String text, boolean mine) {
