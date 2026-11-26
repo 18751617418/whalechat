@@ -1091,6 +1091,9 @@ public class MainActivity extends Activity {
         t.setTextColor(mine ? Color.WHITE : Color.parseColor("#1B2130"));
         t.setPadding(dp(14), dp(10), dp(14), dp(10));
         t.setBackground(round(mine ? Color.parseColor("#3D6AF2") : Color.WHITE, 14));
+        t.setAutoLinkMask(android.text.util.Linkify.WEB_URLS);
+        t.setMovementMethod(android.text.method.LinkMovementMethod.getInstance());
+        t.setLinkTextColor(mine ? Color.WHITE : Color.parseColor("#3D6AF2"));
         t.setMaxWidth((int) (getResources().getDisplayMetrics().widthPixels * 0.75));
         holder.addView(t);
         box.addView(holder);
