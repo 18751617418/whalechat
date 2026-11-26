@@ -979,13 +979,67 @@ public class MainActivity extends Activity {
             String t = o.optString("text", "");
             String fp = o.optString("file", "");
             if (fp.length() > 0) {
-                attachBubble(msgs, scroll, o.optString("name", "文件"), fp, root);
+                if ("image".equals(o.optString("kind", ""))) {
+                    showRemoteImage(msgs, scroll, fp, root);
+                } else {
+                    attachBubble(msgs, scroll, o.optString("name", "文件"), fp, root);
+                }
             } else if (t.length() > 0 && !localReplies.contains(t)) {
                 timeTag(msgs, System.currentTimeMillis());
                 bubble(msgs, scroll, t, false);
             }
         }
         if (items.size() > pollBaseline) pollBaseline = items.size();
+    }
+
+    private void showRemoteImage(final LinearLayout msgs, final ScrollView scroll,
+                                 final String fp, final String root) {
+        new Thread(new Runnable() {
+            public void run() {
+                String q;
+                try {
+                    q = java.net.URLEncoder.encode(fp, "UTF-8");
+                } catch (Exception e) {
+                    return;
+                }
+                final byte[] b = httpGetBytes(root + "/file?p=" + q);
+                if (b == null || b.length == 0) return;
+                ui.post(new Runnable() {
+                    public void run() {
+                        try {
+                            File f = new File(getCacheDir(),
+                                    "att_" + System.currentTimeMillis() + ".img");
+                            FileOutputStream os = new FileOutputStream(f);
+                            os.write(b);
+                            os.close();
+                            bubbleEmoji(msgs, scroll, f);
+                        } catch (Exception ignored) {
+                        }
+                    }
+                });
+            }
+        }).start();
+    }
+
+    private byte[] httpGetBytes(String url) {
+        HttpURLConnection conn = null;
+        try {
+            conn = (HttpURLConnection) new java.net.URL(url).openConnection();
+            conn.setConnectTimeout(6000);
+            conn.setReadTimeout(10000);
+            if (conn.getResponseCode() >= 400) return null;
+            java.io.ByteArrayOutputStream bo = new java.io.ByteArrayOutputStream();
+            InputStream in = conn.getInputStream();
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = in.read(buf)) > 0) bo.write(buf, 0, n);
+            in.close();
+            return bo.toByteArray();
+        } catch (Exception e) {
+            return null;
+        } finally {
+            if (conn != null) conn.disconnect();
+        }
     }
 
     private void attachBubble(LinearLayout box, final ScrollView scroll, String name,
