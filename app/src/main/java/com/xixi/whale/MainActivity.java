@@ -53,6 +53,8 @@ public class MainActivity extends Activity {
     private ScrollView chatScrollRef;
     private final Handler ui = new Handler(Looper.getMainLooper());
     private int pollBaseline = -1;
+    private boolean filesBaselined = false;
+    private final java.util.Set<String> seenFiles = new java.util.HashSet<>();
     private final java.util.Set<String> localReplies = new java.util.HashSet<>();
     private static final String DEFAULT_URL = "http://192.168.1.5:8899";
     private static final String BIG_WHALE_URL = "http://101.37.189.214:8899";
@@ -946,8 +948,12 @@ public class MainActivity extends Activity {
                 new Thread(new Runnable() {
                     public void run() {
                         final String body = httpGet(root + "/history");
+                        final String files = httpGet(root + "/files");
                         ui.post(new Runnable() {
-                            public void run() { renderRemote(msgs, scroll, body, root); }
+                            public void run() {
+                                renderRemote(msgs, scroll, body, root);
+                                renderFiles(msgs, scroll, files, root);
+                            }
                         });
                     }
                 }).start();
@@ -990,6 +996,31 @@ public class MainActivity extends Activity {
             }
         }
         if (items.size() > pollBaseline) pollBaseline = items.size();
+    }
+
+    private void renderFiles(LinearLayout msgs, ScrollView scroll, String body, String root) {
+        if (body == null) return;
+        org.json.JSONArray arr;
+        try {
+            arr = new org.json.JSONObject(body).optJSONArray("files");
+        } catch (Exception e) {
+            return;
+        }
+        if (arr == null) return;
+        java.util.List<org.json.JSONObject> fresh = new java.util.ArrayList<>();
+        for (int i = 0; i < arr.length(); i++) {
+            org.json.JSONObject o = arr.optJSONObject(i);
+            if (o != null && !seenFiles.contains(o.optString("name"))) fresh.add(o);
+        }
+        if (!filesBaselined) {
+            filesBaselined = true;
+            for (org.json.JSONObject o : fresh) seenFiles.add(o.optString("name"));
+            return;
+        }
+        for (org.json.JSONObject o : fresh) {
+            seenFiles.add(o.optString("name"));
+            attachBubble(msgs, scroll, o.optString("name"), o.optString("path"), root);
+        }
     }
 
     private void showRemoteImage(final LinearLayout msgs, final ScrollView scroll,
