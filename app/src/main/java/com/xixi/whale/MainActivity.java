@@ -52,6 +52,8 @@ public class MainActivity extends Activity {
     private LinearLayout chatMsgsRef;
     private ScrollView chatScrollRef;
     private final Handler ui = new Handler(Looper.getMainLooper());
+    private int pollBaseline = -1;
+    private final java.util.Set<String> localReplies = new java.util.HashSet<>();
     private static final String DEFAULT_URL = "http://192.168.1.5:8899";
     private static final String BIG_WHALE_URL = "http://101.37.189.214:8899";
 
@@ -428,6 +430,7 @@ public class MainActivity extends Activity {
 
         final String baseUrl0 = prefs.getString("url_" + idx, defaultUrlFor(idx));
         loadLocalHistory(msgs, scroll, idx, baseUrl0, name);
+        startRemotePoll(msgs, scroll, baseUrl0);
 
         send.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
@@ -453,6 +456,7 @@ public class MainActivity extends Activity {
                                 msgs.removeView(thinking);
                                 timeTag(msgs, System.currentTimeMillis());
                                 bubble(msgs, scroll, reply, false);
+                                localReplies.add(reply);
                                 appendLocal(idx, false, reply, null);
                                 prefs.edit().putString("last_" + idx,
                                         reply.length() > 24 ? reply.substring(0, 24) + "…" : reply).apply();
@@ -930,6 +934,105 @@ public class MainActivity extends Activity {
         scroll.post(new Runnable() {
             public void run() { scroll.fullScroll(View.FOCUS_DOWN); }
         });
+    }
+
+    private void startRemotePoll(final LinearLayout msgs, final ScrollView scroll,
+                                 final String base) {
+        if (base == null || base.length() == 0) return;
+        pollBaseline = -1;
+        final String root = base.replaceAll("/+$", "");
+        final Runnable loop = new Runnable() {
+            public void run() {
+                new Thread(new Runnable() {
+                    public void run() {
+                        final String body = httpGet(root + "/history");
+                        ui.post(new Runnable() {
+                            public void run() { renderRemote(msgs, scroll, body, root); }
+                        });
+                    }
+                }).start();
+                ui.postDelayed(this, 5000);
+            }
+        };
+        ui.postDelayed(loop, 2000);
+    }
+
+    private void renderRemote(LinearLayout msgs, ScrollView scroll, String body, String root) {
+        if (body == null) return;
+        java.util.List<org.json.JSONObject> items = new java.util.ArrayList<>();
+        try {
+            org.json.JSONArray arr = new org.json.JSONObject(body).optJSONArray("messages");
+            if (arr == null) return;
+            for (int i = 0; i < arr.length(); i++) {
+                org.json.JSONObject o = arr.optJSONObject(i);
+                if (o != null && !o.optBoolean("mine", true)) items.add(o);
+            }
+        } catch (Exception e) {
+            return;
+        }
+        if (pollBaseline < 0) {
+            pollBaseline = items.size();
+            return;
+        }
+        for (int i = pollBaseline; i < items.size(); i++) {
+            org.json.JSONObject o = items.get(i);
+            String t = o.optString("text", "");
+            String fp = o.optString("file", "");
+            if (fp.length() > 0) {
+                attachBubble(msgs, scroll, o.optString("name", "文件"), fp, root);
+            } else if (t.length() > 0 && !localReplies.contains(t)) {
+                timeTag(msgs, System.currentTimeMillis());
+                bubble(msgs, scroll, t, false);
+            }
+        }
+        if (items.size() > pollBaseline) pollBaseline = items.size();
+    }
+
+    private void attachBubble(LinearLayout box, final ScrollView scroll, String name,
+                              final String fp, final String root) {
+        timeTag(box, System.currentTimeMillis());
+        TextView t = new TextView(this);
+        t.setText("📎 " + name);
+        t.setTextSize(15);
+        t.setTextColor(Color.parseColor("#1B2130"));
+        t.setPadding(dp(14), dp(10), dp(14), dp(10));
+        t.setBackground(round(Color.parseColor("#E8EEFF"), 14));
+        t.setMaxWidth((int) (getResources().getDisplayMetrics().widthPixels * 0.75));
+        t.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                try {
+                    String url = root + "/file?p=" + java.net.URLEncoder.encode(fp, "UTF-8");
+                    startActivity(new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)));
+                } catch (Exception e) {
+                    Toast.makeText(MainActivity.this, "打不开这个文件", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+        box.addView(t);
+        scroll.post(new Runnable() {
+            public void run() { scroll.fullScroll(View.FOCUS_DOWN); }
+        });
+    }
+
+    private String httpGet(String url) {
+        HttpURLConnection conn = null;
+        try {
+            conn = (HttpURLConnection) new java.net.URL(url).openConnection();
+            conn.setConnectTimeout(6000);
+            conn.setReadTimeout(8000);
+            if (conn.getResponseCode() >= 400) return null;
+            BufferedReader br = new BufferedReader(
+                    new InputStreamReader(conn.getInputStream(), "UTF-8"));
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = br.readLine()) != null) sb.append(line);
+            br.close();
+            return sb.toString();
+        } catch (Exception e) {
+            return null;
+        } finally {
+            if (conn != null) conn.disconnect();
+        }
     }
 
     private void timeTag(LinearLayout box, long ts) {
