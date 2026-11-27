@@ -175,7 +175,7 @@ public class MainActivity extends Activity {
         bar.setPadding(dp(20), dp(28), dp(20), dp(14));
         bar.setBackgroundColor(Color.parseColor("#3D6AF2"));
         bar.addView(label("鲸聊", 22, Color.WHITE, true));
-        TextView sub = label("长按可以改地址 · v40", 12, Color.parseColor("#D8E2FF"), false);
+        TextView sub = label("长按可以改地址 · v41", 12, Color.parseColor("#D8E2FF"), false);
         sub.setPadding(0, dp(4), 0, 0);
         bar.addView(sub);
         page.addView(bar);
@@ -443,13 +443,20 @@ public class MainActivity extends Activity {
         });
 
         emojiInputRef = input;
-        renderEmojiPanel();
 
         bubble(msgs, scroll, "我是" + name + "，有什么就说吧。", false);
 
         final String baseUrl0 = prefs.getString("url_" + idx, defaultUrlFor(idx));
-        loadLocalHistory(msgs, scroll, idx, baseUrl0, name);
-        startRemotePoll(msgs, scroll, baseUrl0);
+        ui.post(new Runnable() {
+            public void run() {
+                renderEmojiPanel();
+                loadLocalHistory(msgs, scroll, idx, baseUrl0, name);
+                startRemotePoll(msgs, scroll, baseUrl0);
+                scroll.post(new Runnable() {
+                    public void run() { scroll.fullScroll(View.FOCUS_DOWN); }
+                });
+            }
+        });
 
         send.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
