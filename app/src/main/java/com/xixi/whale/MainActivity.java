@@ -175,7 +175,7 @@ public class MainActivity extends Activity {
         bar.setPadding(dp(20), dp(28), dp(20), dp(14));
         bar.setBackgroundColor(Color.parseColor("#3D6AF2"));
         bar.addView(label("鲸聊", 22, Color.WHITE, true));
-        TextView sub = label("长按名字可以设置它的地址", 12, Color.parseColor("#D8E2FF"), false);
+        TextView sub = label("长按可以改地址 · v40", 12, Color.parseColor("#D8E2FF"), false);
         sub.setPadding(0, dp(4), 0, 0);
         bar.addView(sub);
         page.addView(bar);
@@ -245,17 +245,17 @@ public class MainActivity extends Activity {
         };
         row.setOnClickListener(openChat);
         row.setOnLongClickListener(openMenu);
+        row.setClickable(true);
+        row.setFocusable(true);
         for (int i = 0; i < row.getChildCount(); i++) {
             View child = row.getChildAt(i);
-            child.setClickable(true);
-            child.setOnClickListener(openChat);
-            child.setOnLongClickListener(openMenu);
+            child.setClickable(false);
+            child.setFocusable(false);
             if (child instanceof LinearLayout) {
                 LinearLayout sub = (LinearLayout) child;
                 for (int j = 0; j < sub.getChildCount(); j++) {
-                    sub.getChildAt(j).setClickable(true);
-                    sub.getChildAt(j).setOnClickListener(openChat);
-                    sub.getChildAt(j).setOnLongClickListener(openMenu);
+                    sub.getChildAt(j).setClickable(false);
+                    sub.getChildAt(j).setFocusable(false);
                 }
             }
         }
