@@ -237,12 +237,28 @@ public class MainActivity extends Activity {
         texts.setLayoutParams(tlp);
         row.addView(texts);
 
-        row.setOnClickListener(new View.OnClickListener() {
+        final View.OnClickListener openChat = new View.OnClickListener() {
             public void onClick(View v) { showChat(name, idx); }
-        });
-        row.setOnLongClickListener(new View.OnLongClickListener() {
+        };
+        final View.OnLongClickListener openMenu = new View.OnLongClickListener() {
             public boolean onLongClick(View v) { showFriendMenu(name, idx); return true; }
-        });
+        };
+        row.setOnClickListener(openChat);
+        row.setOnLongClickListener(openMenu);
+        for (int i = 0; i < row.getChildCount(); i++) {
+            View child = row.getChildAt(i);
+            child.setClickable(true);
+            child.setOnClickListener(openChat);
+            child.setOnLongClickListener(openMenu);
+            if (child instanceof LinearLayout) {
+                LinearLayout sub = (LinearLayout) child;
+                for (int j = 0; j < sub.getChildCount(); j++) {
+                    sub.getChildAt(j).setClickable(true);
+                    sub.getChildAt(j).setOnClickListener(openChat);
+                    sub.getChildAt(j).setOnLongClickListener(openMenu);
+                }
+            }
+        }
         return row;
     }
 
