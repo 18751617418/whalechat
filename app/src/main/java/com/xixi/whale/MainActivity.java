@@ -53,7 +53,7 @@ public class MainActivity extends Activity {
     private ScrollView chatScrollRef;
     private final Handler ui = new Handler(Looper.getMainLooper());
     private int pollBaseline = -1;
-    private boolean filesBaselined = false;
+    private long chatOpenedAt = 0L;
     private final java.util.Set<String> seenFiles = new java.util.HashSet<>();
     private final java.util.Set<String> localReplies = new java.util.HashSet<>();
     private static final String DEFAULT_URL = "http://192.168.1.5:8899";
@@ -351,6 +351,7 @@ public class MainActivity extends Activity {
         chatBaseUrl = prefs.getString("url_" + idx, defaultUrlFor(idx));
         chatName = name;
         chatIdx = idx;
+        chatOpenedAt = System.currentTimeMillis() / 1000L;
 
         final ScrollView emojiScroll = new ScrollView(this);
         emojiScroll.setVerticalScrollBarEnabled(false);
@@ -1028,14 +1029,12 @@ public class MainActivity extends Activity {
             org.json.JSONObject o = arr.optJSONObject(i);
             if (o != null && !seenFiles.contains(o.optString("name"))) fresh.add(o);
         }
-        if (!filesBaselined) {
-            filesBaselined = true;
-            for (org.json.JSONObject o : fresh) seenFiles.add(o.optString("name"));
-            return;
-        }
         for (org.json.JSONObject o : fresh) {
-            seenFiles.add(o.optString("name"));
-            attachBubble(msgs, scroll, o.optString("name"), o.optString("path"), root);
+            String nm = o.optString("name");
+            double mt = o.optDouble("mtime", 0d);
+            seenFiles.add(nm);
+            if (mt > 0d && mt < (double) chatOpenedAt) continue;
+            attachBubble(msgs, scroll, nm, o.optString("path"), root);
         }
     }
 
